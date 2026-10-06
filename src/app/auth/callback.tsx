@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 
 import { LoadingState } from '@/components/ui';
-import { messageFrom, requireSupabase } from '@/lib/supabase';
+import { authErrorMessage, requireSupabase } from '@/lib/supabase';
 
 function readParam(href: string, name: string): string {
   const query = href.split('?')[1]?.split('#')[0] ?? '';
@@ -22,7 +22,7 @@ export default function AuthCallbackScreen() {
       const description = readParam(href, 'error_description');
       const code = readParam(href, 'code');
       if (description) {
-        if (active) setError(description);
+        if (active) setError(authErrorMessage(description));
         return;
       }
       if (!code) {
@@ -32,12 +32,12 @@ export default function AuthCallbackScreen() {
       const { error: exchangeError } = await requireSupabase().auth.exchangeCodeForSession(code);
       if (!active) return;
       if (exchangeError) {
-        setError(messageFrom(exchangeError));
+        setError(authErrorMessage(exchangeError));
         return;
       }
       router.replace('/');
     })().catch((reason) => {
-      if (active) setError(messageFrom(reason));
+      if (active) setError(authErrorMessage(reason));
     });
     return () => {
       active = false;

@@ -87,6 +87,21 @@ export function messageFrom(error: unknown): string {
   return 'Algo deu errado. Tente novamente.';
 }
 
+export function authErrorMessage(reason: unknown): string {
+  const raw = typeof reason === 'string' ? reason : messageFrom(reason);
+  let text = raw;
+  try {
+    const parsed = JSON.parse(raw) as { msg?: string; message?: string; error_description?: string };
+    text = parsed.msg || parsed.error_description || parsed.message || raw;
+  } catch {
+    text = raw;
+  }
+  if (text.includes('provider is not enabled') || text.includes('Unsupported provider')) {
+    return 'O login com Google ainda não está ativado neste projeto Supabase. Entre com e-mail e senha.';
+  }
+  return text;
+}
+
 export async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const client = requireSupabase();
   const { data, error } = await client.functions.invoke(name, { body });

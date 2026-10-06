@@ -6,15 +6,19 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 
+import { env } from '@/config/env';
 import { credentialsSchema, fieldErrors } from '@/domain/validation';
-import { messageFrom, requireSupabase } from '@/lib/supabase';
+import { authErrorMessage, requireSupabase } from '@/lib/supabase';
 
-function loginMessage(reason: unknown): string {
-  const raw = messageFrom(reason);
-  if (raw.includes('provider is not enabled') || raw.includes('Unsupported provider')) {
-    return 'O login com Google ainda não está ativado neste projeto Supabase. Entre com e-mail e senha.';
-  }
-  return raw;
+const googleDisabled = 'O login com Google ainda não está ativado neste projeto Supabase. Entre com e-mail e senha.';
+
+async function isGoogleEnabled(): Promise<boolean> {
+  const response = await fetch(`${env.supabaseUrl}/auth/v1/settings`, {
+    headers: { apikey: env.supabaseAnonKey },
+  });
+  if (!response.ok) return false;
+  const settings = await response.json() as { external?: { google?: boolean } };
+  return settings.external?.google === true;
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,7 +44,7 @@ export default function LoginScreen() {
       if (error) throw error;
       router.replace('/');
     } catch (reason) {
-      setFormError(loginMessage(reason));
+      setFormError(authErrorMessage(reason));
     } finally {
       setLoading(false);
     }
@@ -50,6 +54,10 @@ export default function LoginScreen() {
     setLoading(true);
     setFormError('');
     try {
+      if (!(await isGoogleEnabled())) {
+        setFormError(googleDisabled);
+        return;
+      }
       const redirectTo = Linking.createURL('auth/callback');
       const client = requireSupabase();
       const { data, error } = await client.auth.signInWithOAuth({
@@ -74,7 +82,7 @@ export default function LoginScreen() {
       }
       router.replace('/');
     } catch (reason) {
-      setFormError(loginMessage(reason));
+      setFormError(authErrorMessage(reason));
     } finally {
       setLoading(false);
     }
